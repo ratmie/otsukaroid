@@ -29,16 +29,16 @@ handler = WebhookHandler(channel_secret)
 def lambda_handler(event, context):
 	signature = event["headers"]["X-Line-Signature"]
 	body = event["body"]
-	ok_jason = {"isBase64Encoded": False,
+	ok_json = {"isBase64Encoded": False,
 				"statusCode": 200,
 				"headers": {},
 				"body": ""}
-	error_jason = {"isBase64Encoded": False,
+	error_json = {"isBase64Encoded": False,
 					"statusCode": 403,
 					"headers": {},
 					"body": "Error"}
 
-	@handler.add(MessageEvent)
+	@handler.add(MessageEvent, message=TextMessage)
 	def message(line_event):
 		text = line_event.message.text
 		line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=text))
@@ -49,7 +49,7 @@ def lambda_handler(event, context):
 		logger.error("Got exception from LINE Messaging API: %s\n" % e.message)
 		for m in e.error.details:
 			logger.error(" %s: %s " % (m.property, m.message))
-		return error_jason
+		return error_json
 	except InvalidSignatureError:
 		return error_jason
 	
