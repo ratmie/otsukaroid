@@ -1,13 +1,13 @@
 import os
 import sys
 from linebot import {
-    LineBotApi, webhookHandler
+	LineBotApi, WebhookHandler
 }
-from linebot.modls import {
-    MessageEvent, TextMessage, TextSenMessage
+from linebot.models import {
+	MessageEvent, TextMessage, TextSendMessage
 }
 from linebot.exeptions import {
-    LineBotApiError, InvalidSignatureError
+	LineBotApiError, InvalidSignatureError
 }
 import logging
 
@@ -17,14 +17,40 @@ logger.setLevel(logging.ERROR)
 channel_secret = os.getenv('LINE_CHANNEL_SECRET', None)
 channel_access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN', None)
 if channel_secret is None:
-    logger.error('Specify LINE_CHANNEL_SECRET as environment variable.')
-    sys.exit(1)
+	logger.error('Specify LINE_CHANNEL_SECRET as environment variable.')
+	sys.exit(1)
 if channel_access_token is None:
-    logger.error('Specify LINE_CHANNEL_ACCESS_TOKEN as environment variable.')
-    sys.exit(1)
+	logger.error('Specify LINE_CHANNEL_ACCESS_TOKEN as environment variable.')
+	sys.exit(1)
 
 line_bot_api = LineBotApi(channel_access_token)
 handler = WebhookHandler(channel_secret)
 
 def lambda_handler(event, context):
-    
+	signature = event["headers"]["X-Line-Signature"]
+	body = event["body"]
+	ok_jason = {"isBase64Encoded": False,
+				"statusCode": 200,
+				"headers": {},
+				"body": ""}
+	error_jason = {"isBase64Encoded": False,
+					"statusCode": 403,
+					"headers": {},
+					"body": "Error"}
+
+	@handler.add(MessageEvent)
+	def message(line_event):
+		text = line_event.message.text
+		line_bot_api.reply_message(line_event.reply_token, TextSendMessage(text=text))
+	
+	try:
+		handler.handle(body, signature)
+	except LineBotApiError as e:
+		logger.error("Got exception from LINE Messaging API: %s\n" % e.message)
+		for m in e.error.details:
+			logger.error(" %s: %s " % (m.property, m.message))
+		return error_jason
+	except InvalidSignatureError:
+		return error_jason
+	
+	return ok_json
